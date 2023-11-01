@@ -1,0 +1,96 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Hello EmbedController!{% endblock %}
+   {% block stylesheets %}
+       <link rel="stylesheet" href="{{ base_url }}/latest/ivnews-player.css" >
+       <style>
+           body{
+               background-color: black;
+               margin: 0px;
+               padding: 0px;
+           }
+       </style>
+   {% endblock %}
+
+{% block body %}
+
+
+    <div style="width: 100%; height:100%; margin:auto; position:absolute">
+        <div id="player-container">
+        </div>
+
+    </div>
+    <script src="{{ base_url }}/latest/ivnews-player.js"></script>
+
+    <script>
+        var video_url = '{{ video_url }}';
+        var player = ivnewsPlayer.load({
+            playerId: "player-container",
+            lineUpDuration: 120,
+            lineupSegmentLength: 20,
+            license: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJPbmxpbmUgSldUIEJ1aWxkZXIiLCJpYXQiOjE2MjQyNDk1MzgsImV4cCI6MTY1NTc4NTUzOCwiYXVkIjoidm5wLWVtYmVkLmRldi5pdm5ld3MuY29tIiwic3ViIjoiaXZuLWRldi1wbGF5ZXJAaXZuZXdzLmNvbSIsImRvbWFpbnMiOiJsb2NhbGhvc3QsaXZuLWRldi1wbGF5ZXIuYi1jZG4ubmV0LHZucC1lbWJlZC5kZXYuaXZuZXdzLmNvbSIsIkVOViI6ImRldiJ9.RifkPQ80OcLrhsKxe4Aj0MN8TRg3WB69xnKRHrU5IIg"
+        });
+
+        player.poster = "https://image.mux.com/1pfsdDIO902qa7SwYpOV3DDRv6ak7GGf5/thumbnail.jpg";
+        player.muted(false);
+        player.autplay= false;
+        player.src(
+            [{
+                src: video_url,
+                type: "application/x-mpegurl",
+            }]);
+        player.markers( {
+            markerStyle: {
+                'width': '3px',
+                'border-radius': '0%',
+                'background-color': '#FC4B06'
+            },
+            onMarkerReached: function(marker) {
+
+            },
+            markers:  [
+                {
+                    "time": 0,
+                    "storyId": 1,
+                    "html": '',
+                    "markerStyle": {
+                        'width': '0px',
+                        'border-radius': '0%'
+                    },
+                },
+                {
+                    "time": 66,
+                    "storyId": 2,
+                    "html": '<h3> San Francisco</h3>',
+                    "markerStyle": {
+                        'width': '3px',
+                        'border-radius': '0%',
+                        'background-color': '#FC4B06'
+                    },
+                },
+                {
+                    "time": 96,
+                    "storyId": 3,
+                    "html": '<img src="thumb.jpg" style="width:5rem; height:3rem" />',
+                    "markerStyle": {
+                        'width': '0px',
+                        'border-radius': '0%',
+                        'background-color': '#FC4B06'
+                    },
+                },
+            ]} );
+         window.addEventListener("flutterInAppWebViewPlatformReady", function (event) {
+      const args = [true, { videoSrc: video_url }];
+      window.flutter_inappwebview.callHandler('commEventHandler', ...args);
+
+      window.addEventListener("playPauseEvent", (event) => {
+        if (player.paused()) {
+          player.play();
+        }
+        else {
+          player.pause();
+        }
+      }, false);
+    });
+    </script>
+{% endblock %}

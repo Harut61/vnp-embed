@@ -1,0 +1,40 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Invalid Request!{% endblock %}
+
+
+{% block body %}
+    <style>
+
+        body{
+            background-color: black;
+            margin: 0px;
+            padding: 0px;
+        }
+
+        .over404 {
+            overflow: hidden;
+            position: relative;
+            z-index: 1;
+            background-size: cover;
+            margin: 0 auto;
+            height: 100vh;
+            -webkit-animation: glitch 2s step-end infinite;
+            -moz-animation: glitch 2s step-end infinite;
+            animation: glitch 2s step-end infinite;
+        }
+        
+        .text-center{
+            text-align: center;
+            color: white;
+        }
+
+    </style>
+    <div class="over404">
+        <div class="darkOverlay"></div>
+        <header>
+          <h2 class="text-center">Invalid Request</h2>
+        </header>
+    </div>
+
+{% endblock %}

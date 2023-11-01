@@ -1,0 +1,67 @@
+version: '3'
+volumes:
+  shared-volume: {}
+  mysql-data: {}
+
+services:
+  vnp-embed-init:
+    build:
+      context: .
+      dockerfile: Dockerfile-embed
+      cache_from:
+        - local/vnp-embed:latest
+    image: local/vnp-embed
+    volumes:
+      - shared-volume:/app:rw
+    env_file:
+      - .env
+    entrypoint: /bin/sh
+    command: -c "/ivnews/init.sh"
+
+  vnp-embed-nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile-nginx
+      args:
+        hostname: vnp-embed-app
+      cache_from:
+        - local/vnp-embed-nginx:latest
+    image: local/vnp-embed-nginx
+    ports:
+      - 8080:80
+    depends_on:
+      vnp-embed-init:
+        condition: service_completed_successfully
+    volumes:
+      - shared-volume:/app:rw
+
+  vnp-embed:
+    image: local/vnp-embed
+    hostname: vnp-embed-app
+    ports:
+      - 9000:9000
+    volumes:
+      - shared-volume:/app:rw
+    env_file:
+      - .env
+    depends_on:
+      vnp-embed-init:
+        condition: service_completed_successfully
+      database:
+        condition: service_started
+
+  # MySQL
+  database:
+    image: mysql:5.7.34
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    hostname: vnp-embed-db
+    environment:
+      MYSQL_ROOT_PASSWORD: ivnews123
+      MYSQL_DATABASE: ivnews
+      MYSQL_USER: ivnews
+      MYSQL_PASSWORD: ivnews123
+    volumes:
+      - mysql-data:/var/lib/mysql
+    ports:
+     - "3306:3306"

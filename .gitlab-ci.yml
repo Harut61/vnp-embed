@@ -1,0 +1,106 @@
+image: docker:19.03.0
+
+variables:
+  REGISTRY_URL: "224366161563.dkr.ecr.us-east-1.amazonaws.com"
+  NGINX_COMPONENT_NAME: "vnp-embed-nginx"
+  COMPONENT_NAME: "vnp-embed"
+  AWS_REGION: "us-east-1"
+  PLATFORM: "vnp"
+  VAR_BUCKET: "ivnews-non-prod-vars"
+
+services:
+  - docker:19.03.0-dind
+
+stages:
+  - test
+  - build-push
+  - deploy
+
+.common_before_script: &common_before_script |
+  apk add --no-cache curl jq python py-pip openssh-client &&
+  pip install awscli &&
+  export APP_IMAGE_TAG="${CI_COMMIT_BRANCH}_$(echo $CI_COMMIT_SHA | head -c 8)" &&
+  export COMPONENT_IMAGE_NAME="$REGISTRY_URL/$COMPONENT_NAME" &&
+  export NGINX_IMAGE_NAME="$REGISTRY_URL/$NGINX_COMPONENT_NAME" &&
+  export COMPONENT_IMAGE_NAME_WITH_TAG="$COMPONENT_IMAGE_NAME:$APP_IMAGE_TAG" &&
+  export NGINX_IMAGE_NAME_WITH_TAG="$NGINX_IMAGE_NAME:$APP_IMAGE_TAG" &&
+  export COMPONENT_IMAGE_NAME_LATEST_TAG="$COMPONENT_IMAGE_NAME:${CI_COMMIT_BRANCH}_latest" &&
+  export NGINX_IMAGE_NAME_LATEST_TAG="$NGINX_IMAGE_NAME:${CI_COMMIT_BRANCH}_latest"
+
+.install_helm: &install_helm $CI_PROJECT_DIR/devops-helm/install-helm.sh v3.3.4
+.install_git: &install_git apk add --no-cache git
+.update_helm_submodule: &update_helm_submodule git submodule sync --recursive && git submodule update --recursive --remote
+
+before_script:
+  - *common_before_script
+  - $(aws ecr get-login --no-include-email --region "${AWS_REGION}")
+
+build vnp-embed:
+  only:
+    - develop
+    - master
+  stage: build-push
+  script:
+    - docker pull $COMPONENT_IMAGE_NAME_LATEST_TAG || true
+    - docker build --target app --cache-from $COMPONENT_IMAGE_NAME_LATEST_TAG -f Dockerfile-embed -t $COMPONENT_IMAGE_NAME_WITH_TAG .
+    - docker tag $COMPONENT_IMAGE_NAME_WITH_TAG $COMPONENT_IMAGE_NAME_LATEST_TAG
+    - docker push $COMPONENT_IMAGE_NAME_WITH_TAG
+    - docker push $COMPONENT_IMAGE_NAME_LATEST_TAG
+
+build vnp-embed nginx:
+  only:
+    - develop
+    - master
+  stage: build-push
+  script:
+    - docker pull $NGINX_IMAGE_NAME_LATEST_TAG || true
+    - docker build --cache-from $NGINX_IMAGE_NAME_LATEST_TAG -f Dockerfile-nginx --build-arg hostname=127.0.0.1 -t $NGINX_IMAGE_NAME_WITH_TAG .
+    - docker tag $NGINX_IMAGE_NAME_WITH_TAG $NGINX_IMAGE_NAME_LATEST_TAG
+    - docker push $NGINX_IMAGE_NAME_WITH_TAG
+    - docker push $NGINX_IMAGE_NAME_LATEST_TAG
+
+deploy vnp-embed dev:
+  only:
+    - develop
+  stage: deploy
+  variables:
+    GIT_SUBMODULE_STRATEGY: "recursive"
+    NAMESPACE: "dev"
+  before_script:
+    - *common_before_script
+    - *install_git
+    - *update_helm_submodule
+    - *install_helm
+  script:
+    - cat $INTAKER_PRIV
+    - $CI_PROJECT_DIR/devops-helm/deploy-vnp-embed.sh
+
+deploy vnp-embed test:
+  stage: deploy
+  only:
+    - master
+  before_script:
+    - *common_before_script
+    - *install_git
+    - *update_helm_submodule
+    - *install_helm
+  variables:
+    GIT_SUBMODULE_STRATEGY: "recursive"
+    NAMESPACE: "test"
+  script:
+    - $CI_PROJECT_DIR/devops-helm/deploy-vnp-embed.sh
+
+deploy vnp-embed production:
+  stage: deploy
+  only:
+    - master
+  when: manual
+  variables:
+    GIT_SUBMODULE_STRATEGY: "recursive"
+  before_script:
+    - *common_before_script
+    - *install_git
+    - *update_helm_submodule
+    - *install_helm
+  script:
+    - echo "Production deployment"

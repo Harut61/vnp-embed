@@ -1,0 +1,29 @@
+FROM php:7.4-fpm-alpine3.13 as app
+
+RUN docker-php-ext-install -j$(nproc) pcntl
+
+# Install composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer --version=1.10.16
+
+WORKDIR /ivnews
+
+COPY composer.json composer.lock symfony.lock ./
+
+# Install dependencies using composer
+RUN composer dump-autoload && composer install --no-interaction --optimize-autoloader --no-scripts
+
+RUN chown -R www-data:www-data /ivnews
+
+# Should copy directories with correct www-data owner
+COPY --chown=www-data:www-data . .
+
+# COPY php-fpm configs
+COPY php-fpm/www.conf /usr/local/etc/php-fpm.d/www.conf
+COPY php-fpm/default.ini /usr/local/etc/php/conf.d/default.ini
+
+# Prepare app directory
+RUN mkdir -p /app && chown www-data:www-data /app
+
+USER www-data
+
+EXPOSE 9000

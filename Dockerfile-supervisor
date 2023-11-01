@@ -1,0 +1,19 @@
+FROM php:7.4-fpm-alpine
+
+RUN docker-php-ext-install -j$(nproc) pdo_mysql pcntl
+
+# COPY php-fpm configs
+COPY php-fpm/www.conf /usr/local/etc/php-fpm.d/www.conf
+COPY php-fpm/default.ini /usr/local/etc/php/conf.d/default.ini
+
+# Install Supervisor.
+RUN apk add supervisor
+
+# Define working directory.
+WORKDIR /etc/supervisor/conf.d
+
+#COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+# Start supervisor, define default command.
+CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+
+EXPOSE 9001
